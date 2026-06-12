@@ -1,0 +1,9 @@
+<!-- Simple soccer ball icon -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <circle cx="24" cy="24" r="22" fill="#fff" stroke="#0b3d91" stroke-width="2"/>
+  <!-- Pentagons (simplified soccer ball pattern) -->
+  <polygon points="24,6 32,12 28,22 20,22 16,12" fill="#0b3d91"/>
+  <polygon points="38,16 44,24 38,32 28,30 24,20" fill="#1e7e34"/>
+  <polygon points="10,16 4,24 10,32 20,30 24,20" fill="#ffb81c"/>
+  <polygon points="24,42 16,36 20,26 28,26 32,36" fill="#ffb81c"/>
+</svg>

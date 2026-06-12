@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0b3d91;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1e7e34;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Trophy base -->
+  <path d="M40,85 L40,95 A5,5 0 0,0 50,95 L50,85" fill="#ffb81c" stroke="#333" stroke-width="2"/>
+  <path d="M70,85 L70,95 A5,5 0 0,1 60,95 L60,85" fill="#ffb81c" stroke="#333" stroke-width="2"/>
+  
+  <!-- Trophy cup -->
+  <path d="M45,60 C35,60 30,70 30,80 L30,90 A5,5 0 0,0 40,95 L50,95" fill="none" stroke="#ffb81c" stroke-width="4"/>
+  <path d="M50,60 C50,45 60,35 70,35 C80,35 80,45 80,60" fill="none" stroke="#ffb81c" stroke-width="4"/>
+  <path d="M50,60 L60,25 L70,60 Z" fill="url(#grad1)" stroke="#333" stroke-width="2"/>
+  
+  <!-- Ball pattern (soccer ball simplified) -->
+  <circle cx="60" cy="50" r="8" fill="none" stroke="#fff" stroke-width="1" opacity="0.7"/>
+  <path d="M54,50 A6,6 0 0,1 66,50 M60,44 A6,6 0 0,1 60,56" fill="none" stroke="#fff" stroke-width="1" opacity="0.7"/>
+  
+  <!-- Text -->
+  <text x="60" y="108" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#333" font-weight="bold">
+    COUPE DU MONDE
+  </text>
+</svg>
