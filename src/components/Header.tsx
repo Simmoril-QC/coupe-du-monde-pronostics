@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useStore } from './store';
+import { useStore } from '../store';
 
 const Header = () => {
   const { user } = useStore();
