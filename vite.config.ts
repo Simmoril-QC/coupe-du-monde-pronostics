@@ -6,6 +6,7 @@ export default defineConfig(({ mode }) => {
   
   return {
     plugins: [react()],
+    base: '/coupe-du-monde-pronostics/',
     build: {
       outDir: '../docs',
       emptyOutDir: true,
