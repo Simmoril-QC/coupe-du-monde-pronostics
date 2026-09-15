@@ -1,72 +1,60 @@
-# World Cup App - Pronostics & Groupes
+# Coupe du Monde — Pronostics entre amis
 
-Application web de pronostics Coupe du Monde 2026 permettant aux utilisateurs de créer des groupes privés, faire des prédictions sur les matchs et compétir entre amis.
+Jeu de pronostics Coupe du Monde 2026 : création de groupes privés, invitations par email, pronostics (vainqueur + score), classement par groupe. **Sans pari d'argent.**
 
-## 🌟 Fonctionnalités
+## Stack
 
-- **Groupes privés** : Créez un groupe et invitez vos amis par email
-- **Pronostics** : Prédisez le gagnant et le score des matchs
-- **Classements en temps réel** : Suivez qui mène dans chaque groupe
-- **Score en direct** : Mise à jour automatique via API FIFA (10 req/jour)
-- **Interface moderne** : Thème officiel FIFA (bleu/vert/orange)
-- **Admin dashboard** : Contrôle total du site
+- **Front** : React + Vite + Tailwind CSS (thème FIFA bleu/vert/orange)
+- **Backend** : Supabase (Postgres + Auth magic link + RLS)
+- **Hébergement** : GitHub Pages (build Vite via GitHub Actions)
+- **Sync matchs** : GitHub Actions (manuel ou API Sportmonks si clé fournie)
 
-## 🛠 Stack technique
-
-| Composant | Technology |
-|-----------|------------|
-| Frontend | React + Vite + Tailwind CSS |
-| Backend | Supabase (Postgres + Auth + REST API) |
-| Hosting | GitHub Pages (frontend) + Supabase (backend) |
-| Data Sync | GitHub Actions (cron every 15min) |
-
-## 🚀 Déploiement
-
-### 1. Créer un projet Supabase
-- Allez sur [supabase.com](https://supabase.com)
-- Créez un nouveau projet
-- Copiez l'URL et l'API key (anon key)
-
-### 2. Initialiser la base de données
-Exécutez `db/seed.sql` dans le **SQL Editor** de Supabase.
-
-### 3. Déployer sur GitHub Pages
-1. Activez **GitHub Pages** dans Settings > Pages
-2. Build du frontend : `cd frontend && npm install && npm run build`
-
-## 📁 Structure du repo
+## Structure
 
 ```
-coupe-du-monde-pronostics/
-├── assets/           # Logo + favicon SVG
-├── db/               # Schema SQL + seed data
-├── docs/             # Documentation admin/setup
-├── frontend/         # Code source React/Vite
-│   ├── src/
-│   │   ├── components/  # Header, MatchCard
-│   │   ├── pages/       # Home, Groups, Matches, Leaderboard
-│   │   └── store.ts     # Zustand state management
-│   └── vite.config.js
-└── scripts/          # Sync script + Admin CLI
+├── index.html              # Entrée Vite
+├── src/
+│   ├── App.tsx             # Routes
+│   ├── main.tsx            # Router basename /coupe-du-monde-pronostics
+│   ├── components/Header.tsx
+│   ├── pages/              # Home, Login, Groups, Matches, Leaderboard, Admin
+│   └── lib/                # supabase.ts, AuthContext.tsx, types.ts
+├── public/                 # logo.svg, favicon.svg (copiés dans le build)
+├── db/
+│   ├── seed.sql            # Schema complet + seed (à exécuter en premier)
+│   └── supabase-triggers.sql  # Trigger : profil auto à l'inscription (2e)
+├── scripts/sync-matches.js # Sync optionnelle via API Sportmonks
+└── .github/workflows/deploy.yml  # Build + déploiement GitHub Pages
 ```
 
-## 🌐 Admin Dashboard
+## Mise en service
 
-L'interface admin est accessible via `/admin` (pour les utilisateurs `is_admin=true`).
+1. **Supabase** : exécuter `db/seed.sql` puis `db/supabase-triggers.sql` dans le SQL Editor.
+2. **Auth** : dans le tableau de bord Supabase → Authentication → Providers → activer **Email**.
+   Ajouter l'URL de base GitHub Pages dans **Site URL** et dans **Redirect URLs** :
+   `https://<votre-user>.github.io/coupe-du-monde-pronostics/*`
+3. **GitHub** → Settings → Secrets and variables → Actions :
+   - `VITE_SUPABASE_ANON_KEY` (secret) : la clé `anon public` du projet
+   - `VITE_SUPABASE_URL` (variable, ou secret) : l'URL du projet
+   - *(optionnel)* `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SPORTMONKS_API_KEY` pour la sync auto
+4. **Push** sur `main` → le workflow `deploy.yml` build et déploie.
+5. **Admin** : une fois inscrit, exécuter dans le SQL Editor :
+   `UPDATE users SET is_admin = true WHERE email = 'votre@email.com';`
+   L'interface `/admin` devient alors accessible.
 
-Fonctionnalités :
-- Gestion des utilisateurs
-- Gestion des groupes
-- Synchronisation manuelle des matchs
+## Règles du jeu
 
-See `docs/AdminGuide.md` pour plus de détails.
+- +5 pts : bon résultat (vainqueur/nul)
+- +5 pts bonus : score exact
+- +2 pts bonus : bonne prédiction de la finale
 
-## 🔌 API Externe
+## Développement local
 
-L'application utilise l'API Sportmonks (free tier: 10 req/jour).
+```bash
+cp .env.local.example .env.local   # remplir avec vos clés Supabase
+npm install
+npm run dev                        # http://localhost:3000
+```
 
-Configurez votre clé API dans GitHub Secrets si vous dépassez le quota.
-
----
-
-**Built with ❤️ for World Cup fans**
+> NB : en local, le base de Vite est `/coupe-du-monde-pronostics/` (comme sur Pages).
+> Pour dev sans ce préfixe, retirer `base` dans `vite.config.ts` et le `basename` dans `src/main.tsx`.

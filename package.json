@@ -1,11 +1,11 @@
 {
-  "name": "worldcup-app",
-  "version": "0.1.0",
-  "description": "World Cup prediction game with groups and friends",
+  "name": "coupe-du-monde-pronostics",
+  "version": "0.2.0",
+  "description": "Jeu de pronostics Coupe du Monde entre amis (React + Vite + Supabase)",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -21,8 +21,11 @@
     "@vitejs/plugin-react": "^4.3.0",
     "autoprefixer": "^10.4.19",
     "postcss": "^8.4.38",
-    "replace-in-files": "^3.0.0",
     "tailwindcss": "^3.4.3",
+    "typescript": "^5.5.3",
     "vite": "^5.2.11"
+  },
+  "allowScripts": {
+    "esbuild@0.21.5": true
   }
 }

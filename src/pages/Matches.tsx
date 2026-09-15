@@ -1,139 +1,232 @@
-import { useState } from 'react';
-import Header from '../components/Header';
-import MatchCard from '../components/MatchCard';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../lib/AuthContext';
+import { STAGE_LABELS, type Match, type Prediction } from '../lib/types';
 
-const Matches = () => {
+export default function Matches() {
+  const { user } = useAuth();
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [predictions, setPredictions] = useState<Record<string, Prediction>>({});
   const [filter, setFilter] = useState('all');
-  const [matches] = useState([
-    {
-      id: '1',
-      external_id: 'wc_001',
-      home_team: 'Canada',
-      away_team: 'Mexico',
-      status: 'scheduled',
-      match_date: '2026-06-11T18:00:00Z',
-      stage: 'group_stage'
-    },
-    {
-      id: '2',
-      external_id: 'wc_002',
-      home_team: 'United States',
-      away_team: 'Costa Rica',
-      status: 'scheduled',
-      match_date: '2026-06-12T15:00:00Z',
-      stage: 'group_stage'
-    },
-    {
-      id: '3',
-      external_id: 'wc_003',
-      home_team: 'Argentina',
-      away_team: 'Jamaica',
-      status: 'scheduled',
-      match_date: '2026-06-13T18:00:00Z',
-      stage: 'group_stage'
-    },
-    {
-      id: '4',
-      external_id: 'wc_final_2026',
-      home_team: 'TBD',
-      away_team: 'TBD',
-      status: 'scheduled',
-      match_date: '2026-07-19T18:00:00Z',
-      stage: 'final'
+  const [loading, setLoading] = useState(true);
+  const [drafts, setDrafts] = useState<Record<string, { home: string; away: string }>>({});
+  const [openMatch, setOpenMatch] = useState<string | null>(null);
+  const [msg, setMsg] = useState('');
+
+  const load = async () => {
+    const { data, error } = await supabase
+      .from('matches')
+      .select('*')
+      .order('match_date', { ascending: true });
+    if (!error && data) setMatches(data as Match[]);
+    if (user) {
+      const { data: p } = await supabase
+        .from('predictions')
+        .select('*')
+        .eq('user_id', user.id);
+      const map: Record<string, Prediction> = {};
+      for (const row of (p || []) as Prediction[]) map[row.match_id] = row;
+      setPredictions(map);
     }
-  ]);
+    setLoading(false);
+  };
 
-  const stages = [
-    { id: 'all', label: 'Tous' },
-    { id: 'group_stage', label: 'Phase de groupes' },
-    { id: 'round_of_16', label: '1/8 de finale' },
-    { id: 'quarter_final', label: '1/4 de finale' },
-    { id: 'semi_final', label: 'Demi-finale' },
-    { id: 'final', label: 'Finale' }
-  ];
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
-  const filteredMatches = filter === 'all' 
-    ? matches 
-    : matches.filter(m => m.stage === filter);
+  const savePrediction = async (e: FormEvent, m: Match) => {
+    e.preventDefault();
+    if (!user) return;
+    const draft = drafts[m.id] || { home: '', away: '' };
+    const h = draft.home === '' ? null : Math.max(0, parseInt(draft.home, 10) || 0);
+    const a = draft.away === '' ? null : Math.max(0, parseInt(draft.away, 10) || 0);
+    let winner: 'home' | 'away' | 'draw' | null = null;
+    if (h !== null && a !== null) winner = h > a ? 'home' : h < a ? 'away' : 'draw';
+    const { error } = await supabase
+      .from('predictions')
+      .upsert(
+        {
+          user_id: user.id,
+          match_id: m.id,
+          predicted_winner: winner,
+          home_score: h,
+          away_score: a,
+        },
+        { onConflict: 'user_id,match_id' }
+      );
+    if (error) setMsg('❌ ' + error.message);
+    else setMsg(`✅ Pronostic enregistré pour ${m.home_team} – ${m.away_team}.`);
+    setOpenMatch(null);
+    load();
+  };
+
+  const stages = ['all', 'group_stage', 'round_of_16', 'quarter_final', 'semi_final', 'final'];
+  const filtered = useMemo(
+    () => (filter === 'all' ? matches : matches.filter((m) => m.stage === filter)),
+    [filter, matches]
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
+    <main className="min-h-screen pt-24 pb-12 bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">Matchs & pronostics</h1>
 
-      <main className="pt-24 pb-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-          <h1 className="text-3xl font-bold text-gray-900">Tous les matchs</h1>
-          
-          {/* Filters */}
-          <div className="flex overflow-x-auto pb-2 scrollbar-hide">
-            {stages.map(stage => (
-              <button
-                key={stage.id}
-                onClick={() => setFilter(stage.id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors mr-2 ${
-                  filter === stage.id
-                    ? 'bg-wc-green text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {stage.label}
-              </button>
-            ))}
+        {!supabaseReady() && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-300 rounded-lg text-sm text-yellow-800">
+            ⚠️ Supabase n'est pas configuré (variables d'environnement manquantes). Aucune donnée chargée.
           </div>
-        </div>
+        )}
 
-        {/* Match Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredMatches.map(match => (
-            <MatchCard key={match.id} match={match} />
+        {msg && (
+          <div className={`mb-6 p-4 rounded-lg text-sm ${msg.startsWith('✅') ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+            {msg}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2 mb-8">
+          {stages.map((s) => (
+            <button
+              key={s}
+              onClick={() => setFilter(s)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                filter === s ? 'bg-wc-green text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-100'
+              }`}
+            >
+              {s === 'all' ? 'Tous' : STAGE_LABELS[s] || s}
+            </button>
           ))}
         </div>
 
-        {/* Final Match Highlight */}
-        {filter === 'all' && (
-          <section className="mt-12 mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-              <span className="bg-wc-orange text-wc-blue px-3 py-1 rounded-lg text-sm font-bold">FINAL</span>
-              Finale de la Coupe du Monde 2026
-            </h2>
-            
-            {filteredMatches.filter(m => m.stage === 'final').map(match => (
-              <div key={match.id} className="bg-gradient-to-br from-wc-blue via-wc-green to-green-900 rounded-2xl p-8 text-white shadow-xl">
-                <div className="text-center">
-                  <p className="text-lg opacity-90 mb-4">Vendredi 19 juillet 2026</p>
-                  <h3 className="text-3xl font-bold mb-6">Équipe A vs Équipe B</h3>
-                  
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
-                    <p className="mb-4 text-center">Prédisez le vainqueur de la finale !</p>
-                    
-                    <div className="grid grid-cols-2 gap-4 max-w-md mx-auto mb-4">
-                      <button className="bg-white/20 hover:bg-white/30 py-3 rounded-lg font-medium transition-colors">
-                        Équipe A
-                      </button>
-                      <button className="bg-white/20 hover:bg-white/30 py-3 rounded-lg font-medium transition-colors">
-                        Équipe B
-                      </button>
-                    </div>
-
-                    <input
-                      type="number"
-                      placeholder="Score Équipe A"
-                      className="w-full mb-3 px-4 py-2 bg-white/20 border border-white/30 rounded-lg text-center focus:ring-2 focus:ring-wc-orange focus:border-transparent"
-                    />
-                    
-                    <button className="w-full py-3 bg-wc-orange text-wc-blue font-bold rounded-lg hover:bg-yellow-300 transition-colors">
-                      Valider ma prédiction
-                    </button>
-                  </div>
-                </div>
-              </div>
+        {loading ? (
+          <div className="text-gray-500">Chargement des matchs…</div>
+        ) : filtered.length === 0 ? (
+          <div className="bg-white rounded-xl p-12 text-center text-gray-500">
+            Aucun match pour cette étape. Les matchs arrivent via la synchronisation (API / admin).
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filtered.map((m) => (
+              <MatchCard
+                key={m.id}
+                match={m}
+                prediction={predictions[m.id]}
+                draft={drafts[m.id]}
+                open={openMatch === m.id}
+                canPredict={Boolean(user) && m.status === 'scheduled'}
+                onToggle={() => setOpenMatch(openMatch === m.id ? null : m.id)}
+                onDraft={(d) => setDrafts((prev) => ({ ...prev, [m.id]: d }))}
+                onSave={(e) => savePrediction(e, m)}
+              />
             ))}
-          </section>
+          </div>
         )}
-      </main>
+
+        {!user && (
+          <div className="mt-10 text-center">
+            <p className="text-gray-600 mb-3">Connectez-vous pour saisir vos pronostics.</p>
+            <Link to="/login" className="inline-block px-6 py-3 bg-wc-green text-white rounded-lg font-bold">
+              Se connecter
+            </Link>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
+
+function supabaseReady() {
+  try {
+    return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+  } catch {
+    return false;
+  }
+}
+
+interface CardProps {
+  match: Match;
+  prediction?: Prediction;
+  draft?: { home: string; away: string };
+  open: boolean;
+  canPredict: boolean;
+  onToggle: () => void;
+  onDraft: (d: { home: string; away: string }) => void;
+  onSave: (e: FormEvent) => void;
+}
+
+function MatchCard({ match: m, prediction, draft, open, canPredict, onToggle, onDraft, onSave }: CardProps) {
+  const finished = m.status === 'finished';
+  return (
+    <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 flex flex-col">
+      <div className={`px-4 py-2 flex items-center justify-between text-white ${finished ? 'bg-green-700' : 'bg-gradient-to-r from-wc-blue to-wc-green'}`}>
+        <span className="text-xs font-semibold uppercase tracking-wide">{STAGE_LABELS[m.stage] || m.stage}</span>
+        <span className={`text-xs px-2 py-0.5 rounded-full ${finished ? 'bg-green-500' : m.status === 'live' ? 'bg-yellow-400 text-yellow-900' : 'bg-white/20'}`}>
+          {finished ? 'Terminé' : m.status === 'live' ? 'En direct' : 'À venir'}
+        </span>
+      </div>
+
+      <div className="p-5 flex-1">
+        <div className="flex items-center justify-between">
+          <div className="text-center flex-1">
+            <div className="font-bold text-gray-900">{m.home_team}</div>
+            {finished && <div className="text-2xl font-bold text-wc-green mt-1">{m.home_score ?? '–'}</div>}
+          </div>
+          <div className="px-3 text-gray-400 font-bold">VS</div>
+          <div className="text-center flex-1">
+            <div className="font-bold text-gray-900">{m.away_team}</div>
+            {finished && <div className="text-2xl font-bold text-wc-green mt-1">{m.away_score ?? '–'}</div>}
+          </div>
+        </div>
+
+        <div className="mt-3 text-center text-sm text-gray-500">
+          {m.match_date && new Date(m.match_date).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+        </div>
+
+        {prediction && (
+          <div className="mt-4 text-center text-sm bg-blue-50 border border-blue-100 rounded-lg py-2 text-blue-800">
+            Votre prono : <b>{prediction.home_score ?? '?'} – {prediction.away_score ?? '?'}</b>{' '}
+            ({prediction.predicted_winner === 'home' ? m.home_team : prediction.predicted_winner === 'away' ? m.away_team : 'Nul'})
+          </div>
+        )}
+      </div>
+
+      {canPredict && (
+        <div className="border-t border-gray-100">
+          <button onClick={onToggle} className="w-full py-2.5 bg-wc-blue text-white rounded-b-xl font-medium hover:bg-blue-700 transition-colors">
+            {open ? 'Fermer' : 'Faire mon pronostic'}
+          </button>
+          {open && (
+            <form onSubmit={onSave} className="p-4 space-y-3 bg-gray-50">
+              <div className="flex items-center justify-center gap-3">
+                <input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  placeholder="Buts domicile"
+                  value={draft?.home ?? ''}
+                  onChange={(e) => onDraft({ home: e.target.value, away: draft?.away ?? '' })}
+                  className="w-20 px-2 py-2 border border-gray-300 rounded-lg text-center"
+                />
+                <span className="text-gray-400 font-bold">–</span>
+                <input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  placeholder="Buts extérieur"
+                  value={draft?.away ?? ''}
+                  onChange={(e) => onDraft({ home: draft?.home ?? '', away: e.target.value })}
+                  className="w-20 px-2 py-2 border border-gray-300 rounded-lg text-center"
+                />
+              </div>
+              <button type="submit" className="w-full py-2 bg-wc-green text-white rounded-lg font-medium hover:bg-green-700">
+                Valider
+              </button>
+            </form>
+          )}
+        </div>
+      )}
     </div>
   );
-};
-
-export default Matches;
+}

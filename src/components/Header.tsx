@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useStore } from '../store';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../lib/AuthContext';
 
 const Header = () => {
-  const { user } = useStore();
+  const { user, signOut } = useAuth();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -16,7 +16,7 @@ const Header = () => {
     <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white shadow-md py-2' : 'bg-gradient-to-r from-wc-blue to-wc-green py-4'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
-          <img src="/src/assets/logo.svg" alt="Coupe du Monde" className="h-10 w-10" />
+          <img src={import.meta.env.BASE_URL + 'logo.svg'} alt="Coupe du Monde" className="h-10 w-10" />
           <div>
             <h1 className={`font-bold text-white transition-colors ${scrolled ? 'text-wc-blue' : ''}`}>World Cup</h1>
             <p className={`text-xs font-medium transition-colors ${scrolled ? 'text-gray-500' : 'text-wc-orange'}`}>Pronos & Groupes</p>
@@ -32,8 +32,9 @@ const Header = () => {
               {user.is_admin && (
                 <Link to="/admin" className={`font-medium px-4 py-2 rounded-lg transition-colors ${scrolled ? 'bg-wc-green text-white hover:bg-green-700' : 'bg-wc-orange text-wc-blue font-bold hover:bg-yellow-300'}`}>Admin</Link>
               )}
-              <button className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors">
+              <button onClick={() => signOut()} title="Se déconnecter" className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors">
                 <span className={`font-medium ${scrolled ? 'text-gray-700' : 'text-white'}`}>{user.email}</span>
+                <span className={`text-xs ${scrolled ? 'text-gray-400' : 'text-white/70'}`}>↩</span>
               </button>
             </>
           ) : (
