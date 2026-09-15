@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext';
 
 const Header = () => {
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -32,7 +32,7 @@ const Header = () => {
               {user.is_admin && (
                 <Link to="/admin" className={`font-medium px-4 py-2 rounded-lg transition-colors ${scrolled ? 'bg-wc-green text-white hover:bg-green-700' : 'bg-wc-orange text-wc-blue font-bold hover:bg-yellow-300'}`}>Admin</Link>
               )}
-              <button onClick={() => signOut()} title="Se déconnecter" className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors">
+              <button onClick={() => logout()} title="Se déconnecter" className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors">
                 <span className={`font-medium ${scrolled ? 'text-gray-700' : 'text-white'}`}>{user.email}</span>
                 <span className={`text-xs ${scrolled ? 'text-gray-400' : 'text-white/70'}`}>↩</span>
               </button>
@@ -40,7 +40,7 @@ const Header = () => {
           ) : (
             <>
               <Link to="/login" className={`font-medium transition-colors ${scrolled ? 'text-gray-700 hover:text-wc-blue' : 'text-white hover:text-wc-orange'}`}>Connexion</Link>
-              <Link to="/signup" className={`px-5 py-2 rounded-lg font-medium transition-all ${scrolled ? 'bg-wc-green text-white hover:bg-green-700' : 'bg-wc-orange text-wc-blue hover:bg-yellow-300'}`}>S'inscrire</Link>
+              <Link to="/login" className={`px-5 py-2 rounded-lg font-medium transition-all ${scrolled ? 'bg-wc-green text-white hover:bg-green-700' : 'bg-wc-orange text-wc-blue hover:bg-yellow-300'}`}>S'inscrire</Link>
             </>
           )}
         </nav>

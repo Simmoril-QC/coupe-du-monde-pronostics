@@ -10,16 +10,16 @@ export interface Group {
   id: string;
   name: string;
   description: string | null;
-  code: string | null;
+  code: string;
   owner_id: string;
   created_at: string;
 }
 
 export interface GroupMember {
   user_id: string;
+  group_id: string;
   status: 'pending' | 'accepted' | 'rejected';
   role: string;
-  users?: { id: string; name: string | null; email: string } | null;
 }
 
 export interface Match {
@@ -30,9 +30,11 @@ export interface Match {
   home_score: number | null;
   away_score: number | null;
   status: 'scheduled' | 'live' | 'finished';
-  match_date: string;
+  match_date: string | null;
   stage: string;
   group_name: string | null;
+  pen_score?: string | null;
+  aet?: boolean;
 }
 
 export interface Prediction {
@@ -48,15 +50,15 @@ export interface Invitation {
   id: string;
   group_id: string;
   email: string;
-  code: string;
   status: string;
-  groups?: { name: string } | null;
 }
 
 export const STAGE_LABELS: Record<string, string> = {
   group_stage: 'Phase de groupes',
-  round_of_16: '1/8 de finale',
-  quarter_final: '1/4 de finale',
+  round_of_32: '32e de finale',
+  round_of_16: '16e de finale',
+  quarter_final: 'Quart de finale',
   semi_final: 'Demi-finale',
+  third_place: '3e place',
   final: 'FINALE',
 };

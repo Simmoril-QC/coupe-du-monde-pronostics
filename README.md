@@ -1,60 +1,97 @@
 # Coupe du Monde — Pronostics entre amis
 
-Jeu de pronostics Coupe du Monde 2026 : création de groupes privés, invitations par email, pronostics (vainqueur + score), classement par groupe. **Sans pari d'argent.**
+Jeu de pronostics **100 % local** sur la Coupe du Monde 2026 : création de groupes privés, invitations par code,
+pronostics (vainqueur + score), classement par groupe. **Sans pari d'argent, sans backend, sans service externe.**
 
 ## Stack
 
-- **Front** : React + Vite + Tailwind CSS (thème FIFA bleu/vert/orange)
-- **Backend** : Supabase (Postgres + Auth magic link + RLS)
-- **Hébergement** : GitHub Pages (build Vite via GitHub Actions)
-- **Sync matchs** : GitHub Actions (manuel ou API Sportmonks si clé fournie)
+- React 18 + Vite + TypeScript
+- Tailwind CSS (thème bleu/vert/orange)
+- Données stockées dans le `localStorage` du navigateur
 
-## Structure
-
-```
-├── index.html              # Entrée Vite
-├── src/
-│   ├── App.tsx             # Routes
-│   ├── main.tsx            # Router basename /coupe-du-monde-pronostics
-│   ├── components/Header.tsx
-│   ├── pages/              # Home, Login, Groups, Matches, Leaderboard, Admin
-│   └── lib/                # supabase.ts, AuthContext.tsx, types.ts
-├── public/                 # logo.svg, favicon.svg (copiés dans le build)
-├── db/
-│   ├── seed.sql            # Schema complet + seed (à exécuter en premier)
-│   └── supabase-triggers.sql  # Trigger : profil auto à l'inscription (2e)
-├── scripts/sync-matches.js # Sync optionnelle via API Sportmonks
-└── .github/workflows/deploy.yml  # Build + déploiement GitHub Pages
-```
-
-## Mise en service
-
-1. **Supabase** : exécuter `db/seed.sql` puis `db/supabase-triggers.sql` dans le SQL Editor.
-2. **Auth** : dans le tableau de bord Supabase → Authentication → Providers → activer **Email**.
-   Ajouter l'URL de base GitHub Pages dans **Site URL** et dans **Redirect URLs** :
-   `https://<votre-user>.github.io/coupe-du-monde-pronostics/*`
-3. **GitHub** → Settings → Secrets and variables → Actions :
-   - `VITE_SUPABASE_ANON_KEY` (secret) : la clé `anon public` du projet
-   - `VITE_SUPABASE_URL` (variable, ou secret) : l'URL du projet
-   - *(optionnel)* `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SPORTMONKS_API_KEY` pour la sync auto
-4. **Push** sur `main` → le workflow `deploy.yml` build et déploie.
-5. **Admin** : une fois inscrit, exécuter dans le SQL Editor :
-   `UPDATE users SET is_admin = true WHERE email = 'votre@email.com';`
-   L'interface `/admin` devient alors accessible.
-
-## Règles du jeu
-
-- +5 pts : bon résultat (vainqueur/nul)
-- +5 pts bonus : score exact
-- +2 pts bonus : bonne prédiction de la finale
-
-## Développement local
+## Lancer en local
 
 ```bash
-cp .env.local.example .env.local   # remplir avec vos clés Supabase
 npm install
-npm run dev                        # http://localhost:3000
+npm run dev
 ```
 
-> NB : en local, le base de Vite est `/coupe-du-monde-pronostics/` (comme sur Pages).
-> Pour dev sans ce préfixe, retirer `base` dans `vite.config.ts` et le `basename` dans `src/main.tsx`.
+## Build & déploiement (GitHub Pages)
+
+```bash
+npm run build   # génère dist/
+```
+
+Le workflow `.github/workflows/deploy.yml` (à créer dans le repo, voir ci-dessous) build et publie sur GitHub Pages.
+**Aucune variable d'environnement n'est nécessaire** (plus de Supabase).
+
+### Créer le workflow (une seule fois, via l'interface GitHub)
+
+Le token d'API n'a pas la scope `workflow`, le workflow doit être créé à la main :
+repo → *Add file* → *Create new file* → nom `.github/workflows/deploy.yml` → contenu :
+
+```yaml
+name: Deploy to GitHub Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: cp dist/index.html dist/404.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
+```
+
+Puis dans **Settings → Pages** : source = *GitHub Actions*.
+
+## Données
+
+Les 104 matchs de la Coupe du Monde 2026 (résultats complets, source Wikipédia/FIFA) sont embarqués dans
+`src/data/matches.ts`. Ils peuvent être modifiés depuis l'interface **Admin** (`/admin`) — le premier compte créé
+est administrateur. L'admin peut aussi **exporter/importer** l'intégralité des données (comptes, groupes, matchs,
+pronostics) en JSON via l'onglet *Données*.
+
+## Limites du mode local
+
+Les données vivent **par navigateur** : deux personnes sur deux appareils ne partagent pas les mêmes groupes.
+Pour jouer ensemble, chaque participant doit :
+1. se créer un compte sur son appareil,
+2. rejoindre le groupe avec le **code d'invitation** (6 lettres) fourni par le créateur.
+
+Le classement ne reflète donc que les membres du groupe **sur le même appareil**. C'est le mode "solo entre amis" :
+chacun garde son propre tableau, et les codes servent à partager le contexte.
+
+## Barème
+
+- 5 pts : bon vainqueur (ou nul)
+- +5 pts : score exact (donc 10 pts si les deux)
+- ×2 sur la finale
+- Prolongation / tirs au but : le score de base est celui des 90 min (les TA ne comptent pas pour le score exact).

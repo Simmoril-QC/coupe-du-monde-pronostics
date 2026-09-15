@@ -1,7 +1,7 @@
 {
   "name": "coupe-du-monde-pronostics",
   "version": "0.2.0",
-  "description": "Jeu de pronostics Coupe du Monde entre amis (React + Vite + Supabase)",
+  "description": "Jeu de pronostics Coupe du Monde entre amis (React + Vite, 100% local)",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,11 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.43.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.22.0",
-    "zustand": "^4.5.0"
+    "react-router-dom": "^6.22.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
