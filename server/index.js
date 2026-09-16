@@ -10,7 +10,7 @@ const express = require('express');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const { DatabaseSync } = require('node:sqlite');
+const { DatabaseSync } = require('./sqlite-shim');
 const nodemailer = require('nodemailer');
 
 // ----------------------------- .env (léger, sans dépendance) -----------------------------
@@ -41,7 +41,8 @@ const SMTP_PASS = process.env.SMTP_PASS || '';
 const SMTP_FROM = process.env.SMTP_FROM || 'pronos@localhost';
 
 // ----------------------------- SQLite -----------------------------
-const db = new DatabaseSync(DB_PATH);
+async function main() {
+const db = await DatabaseSync.open(DB_PATH);
 db.exec(`
   PRAGMA journal_mode = WAL;
   CREATE TABLE IF NOT EXISTS users (
@@ -650,3 +651,6 @@ app.listen(PORT, () => {
   console.log('   SMTP   :', SMTP_HOST ? SMTP_HOST : 'NON CONFIGURÉ (liens loggués en console)');
   console.log('   APP_URL:', APP_URL);
 });
+}
+
+main().catch((e) => { console.error('ÉCHEC DÉMARRAGE:', e); process.exit(1); });
