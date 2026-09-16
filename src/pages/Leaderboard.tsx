@@ -1,32 +1,13 @@
-import { useMemo, useState } from 'react';
-import { useDB } from '../lib/store';
+import { useEffect, useMemo, useState } from 'react';
+import { api, useDB } from '../lib/store';
 import { useAuth } from '../lib/AuthContext';
-import type { Match, Prediction } from '../lib/types';
-
-// Barème : 5 pts bon vainqueur · +5 pts score exact (soit 10) · finale x2
-function scorePrediction(m: Match, p: Prediction): { pts: number; detail: string } {
-  if (m.status !== 'finished' || m.home_score === null || m.away_score === null) return { pts: 0, detail: '' };
-  const winner: 'home' | 'away' | 'draw' =
-    m.home_score > m.away_score ? 'home' : m.home_score < m.away_score ? 'away' : 'draw';
-  let pts = 0;
-  const parts: string[] = [];
-  if (p.predicted_winner === winner) {
-    pts += 5;
-    parts.push('résultat');
-  }
-  if (p.home_score === m.home_score && p.away_score === m.away_score) {
-    pts += 5;
-    parts.push('score');
-  }
-  if (parts.length === 0) return { pts: 0, detail: '—' };
-  const mult = m.stage === 'final' ? 2 : 1;
-  return { pts: pts * mult, detail: parts.join(' +') + (mult === 2 ? ' (finale x2)' : '') };
-}
+import type { UserProfile } from '../lib/types';
 
 export default function Leaderboard() {
   const { user } = useAuth();
   const db = useDB();
   const [groupId, setGroupId] = useState<string>('');
+  const [rows, setRows] = useState<{ user: UserProfile; total: number; correct: number; exact: number; played: number }[]>([]);
 
   const myGroups = useMemo(
     () => db.groups.filter((g) => db.members.some((m) => m.group_id === g.id && m.user_id === user?.id)),
@@ -34,31 +15,15 @@ export default function Leaderboard() {
   );
   const activeGroupId = groupId || myGroups[0]?.id || '';
 
-  const rows = useMemo(() => {
-    if (!activeGroupId) return [];
-    const memberIds = db.members
-      .filter((m) => m.group_id === activeGroupId && m.status === 'accepted')
-      .map((m) => m.user_id);
-    return memberIds
-      .map((uid) => {
-        const u = db.users.find((x) => x.id === uid);
-        const preds = db.predictions.filter((p) => p.user_id === uid);
-        let total = 0;
-        let correct = 0;
-        let exact = 0;
-        for (const p of preds) {
-          const m = db.matches.find((x) => x.id === p.match_id);
-          if (!m) continue;
-          const r = scorePrediction(m, p);
-          total += r.pts;
-          if (r.pts >= 5) correct++;
-          if (r.detail.includes('score')) exact++;
-        }
-        return { user: u, total, correct, exact, played: preds.length };
-      })
-      .filter((r) => r.user)
-      .sort((a, b) => b.total - a.total);
-  }, [db, activeGroupId]);
+  // Classement calculé côté serveur (même barème)
+  useEffect(() => {
+    if (!user || !activeGroupId) { setRows([]); return; }
+    let alive = true;
+    api.leaderboard(activeGroupId)
+      .then((d) => { if (alive) setRows(d.rows); })
+      .catch(() => { if (alive) setRows([]); });
+    return () => { alive = false; };
+  }, [user, activeGroupId, db.predictions.length]);
 
   const activeGroup = db.groups.find((g) => g.id === activeGroupId);
 

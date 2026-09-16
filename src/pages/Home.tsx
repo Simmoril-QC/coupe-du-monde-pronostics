@@ -1,22 +1,24 @@
 import { Link } from 'react-router-dom';
 import { useDB } from '../lib/store';
+import { useSport } from '../lib/SportContext';
 import { STAGE_LABELS, type Match } from '../lib/types';
+
+const SPORT_ICON: Record<string, string> = { 'football-m': '⚽', 'football-f': '⚽', 'basketball-m': '🏀', 'basketball-f': '🏀' };
 
 export default function Home() {
   const db = useDB();
-  const all = db.matches;
-  const finishedCount = all.filter((m) => m.status === 'finished').length;
-  const teams = new Set<string>();
-  all.forEach((m) => {
-    teams.add(m.home_team);
-    teams.add(m.away_team);
-  });
+  const { sport, sports, info, setSport } = useSport();
 
-  const final = all.find((m) => m.stage === 'final');
-  const highlights = all
-    .filter((m) => ['final', 'semi_final', 'quarter_final', 'third_place'].includes(m.stage))
+  const matches = db.matches.filter((m) => m.sport === sport);
+  const finishedCount = matches.filter((m) => m.status === 'finished').length;
+  const teams = new Set<string>();
+  matches.forEach((m) => { teams.add(m.home_team); teams.add(m.away_team); });
+
+  const final = matches.find((m) => m.stage === 'final');
+  const highlights = matches
+    .filter((m) => ['final', 'semi_final', 'quarter_final', 'third_place', 'fifth_place'].includes(m.stage))
     .sort((a, b) => (a.match_date || '').localeCompare(b.match_date || ''))
-    .slice(-5);
+    .slice(-6);
 
   const scoreLine = (m: Match) => (
     <span>
@@ -28,32 +30,48 @@ export default function Home() {
     </span>
   );
 
+  if (db.sports.length === 0) {
+    return (
+      <main className="min-h-screen pt-32 pb-16 bg-gray-50 text-center">
+        <div className="text-4xl mb-4">🏆</div>
+        <h1 className="text-2xl font-bold text-gray-900">Chargement…</h1>
+        <p className="text-gray-500 mt-2">Connexion au serveur de données.</p>
+      </main>
+    );
+  }
+
   return (
     <main>
       {/* Hero */}
       <section className="pt-32 pb-16 bg-gradient-to-br from-wc-blue via-wc-green to-green-900 text-white relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 tracking-tight">
-            Coupe du Monde
-            <span className="block text-wc-orange mt-2">Pronostics & Groupes</span>
+          <h1 className="text-5xl md:text-6xl font-bold mb-4 tracking-tight">
+            <span className="mr-3">{SPORT_ICON[sport] || '🏆'}</span>
+            <span className="block text-wc-orange mt-2 text-3xl md:text-4xl">{info?.label}</span>
           </h1>
           <p className="text-xl text-blue-100 max-w-2xl mx-auto mb-8">
-            Rejouez la Coupe du Monde 2026 match après match, comparez vos pronostics à ceux du résultat, et
-            devinez qui raflerait le plus de points dans votre groupe.
+            {info?.tournament}. Rejouez le tournoi match après match, comparez vos pronostics au résultat,
+            et devinez qui mène dans votre groupe.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              to="/groups"
-              className="px-8 py-3 bg-wc-orange text-wc-blue rounded-lg font-bold hover:bg-yellow-300 transition-colors w-full sm:w-auto"
-            >
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+            <Link to="/groups" className="px-8 py-3 bg-wc-orange text-wc-blue rounded-lg font-bold hover:bg-yellow-300 transition-colors w-full sm:w-auto">
               Rejoindre un groupe
             </Link>
-            <Link
-              to="/matches"
-              className="px-8 py-3 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg font-bold hover:bg-white/20 transition-colors w-full sm:w-auto"
-            >
+            <Link to="/matches" className="px-8 py-3 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg font-bold hover:bg-white/20 transition-colors w-full sm:w-auto">
               Voir les matchs
             </Link>
+          </div>
+          {/* Choix du sport */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {sports.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setSport(s.id)}
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${s.id === sport ? 'bg-white text-wc-blue' : 'bg-white/10 text-white hover:bg-white/20'}`}
+              >
+                {SPORT_ICON[s.id] || '🏆'} {s.label}
+              </button>
+            ))}
           </div>
         </div>
       </section>
@@ -63,7 +81,7 @@ export default function Home() {
         <section className="py-14 bg-white">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-6">
-              <div className="text-xs font-bold uppercase tracking-widest text-wc-green mb-2">Vainqueur de la Coupe du Monde 2026</div>
+              <div className="text-xs font-bold uppercase tracking-widest text-wc-green mb-2">Vainqueur — {info?.tournament}</div>
               <h2 className="text-4xl md:text-5xl font-black text-wc-blue">🏆 {final.home_team}</h2>
             </div>
             <div className="bg-gradient-to-r from-wc-blue to-wc-green rounded-2xl p-8 text-white flex flex-col sm:flex-row items-center justify-center gap-6">
@@ -84,10 +102,10 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
-              { label: 'Équipes', value: String(teams.size || 48) },
-              { label: 'Matchs joués', value: String(finishedCount) },
-              { label: 'Groupes', value: 'Privés' },
-              { label: 'Joueurs', value: 'Vous' }
+              { label: 'Équipes', value: String(teams.size) },
+              { label: 'Matchs joués', value: String(finishedCount) + '/' + matches.length },
+              { label: 'Tournoi', value: info?.tournament.split(' ').slice(0, 2).join(' ') || '—' },
+              { label: 'Sport', value: SPORT_ICON[sport] || '🏆' }
             ].map((stat) => (
               <div key={stat.label}>
                 <div className="text-3xl md:text-5xl font-bold text-wc-blue mb-1">{stat.value}</div>
@@ -102,10 +120,8 @@ export default function Home() {
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">Résultats clés</h2>
-            <Link to="/matches" className="text-wc-green hover:text-green-700 font-medium">
-              Voir tous les matchs →
-            </Link>
+            <h2 className="text-3xl font-bold text-gray-900">Résultats clés — {info?.label}</h2>
+            <Link to="/matches" className="text-wc-green hover:text-green-700 font-medium">Voir tous les matchs →</Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {highlights.map((m) => (
@@ -132,9 +148,9 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             {[
+              { title: '4 sports', desc: 'Football & Basketball, masculin et féminin, prêts à jouer' },
               { title: 'Groupes privés', desc: 'Créez votre groupe et invitez vos amis par email' },
-              { title: 'Classement en direct', desc: 'Suivez qui mène dans chaque groupe' },
-              { title: 'Pronostics', desc: 'Prédisez le gagnant et le score, cumulez des points' }
+              { title: 'Classement en direct', desc: 'Suivez qui mène dans chaque groupe' }
             ].map((f) => (
               <div key={f.title} className="bg-white/10 backdrop-blur-sm p-8 rounded-2xl text-white">
                 <h3 className="text-xl font-bold mb-2">{f.title}</h3>
@@ -149,13 +165,8 @@ export default function Home() {
       <section className="py-16 bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">Prêt à jouer avec vos amis ?</h2>
-          <p className="text-xl text-gray-600 mb-8">
-            Créez votre groupe et lancez-vous dans l'aventure Coupe du Monde.
-          </p>
-          <Link
-            to="/login"
-            className="inline-block px-10 py-4 bg-wc-orange text-wc-blue rounded-xl font-bold text-lg hover:bg-yellow-300 transition-all transform hover:scale-105 shadow-lg"
-          >
+          <p className="text-xl text-gray-600 mb-8">Choisissez votre sport, créez votre groupe et lancez-vous.</p>
+          <Link to="/login" className="inline-block px-10 py-4 bg-wc-orange text-wc-blue rounded-xl font-bold text-lg hover:bg-yellow-300 transition-all transform hover:scale-105 shadow-lg">
             S'inscrire gratuitement
           </Link>
         </div>
@@ -166,7 +177,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <img src={import.meta.env.BASE_URL + 'logo.svg'} alt="Logo" className="h-8 w-8" />
-            <span className="font-bold text-lg">World Cup Pronostics</span>
+            <span className="font-bold text-lg">Pronos Multi-Sports</span>
           </div>
           <p className="text-gray-400 text-sm">© 2026 — Jeu entre amis, sans pari d'argent.</p>
         </div>

@@ -11,6 +11,7 @@ export interface Group {
   name: string;
   description: string | null;
   code: string;
+  sport: string;
   owner_id: string;
   created_at: string;
 }
@@ -25,6 +26,7 @@ export interface GroupMember {
 export interface Match {
   id: string;
   external_id: string;
+  sport: string;
   home_team: string;
   away_team: string;
   home_score: number | null;
@@ -53,12 +55,25 @@ export interface Invitation {
   status: string;
 }
 
+export interface SportInfo {
+  id: string;
+  label: string;
+  sport: string;
+  gender: string;
+  tournament: string;
+  count: number;
+}
+
 export const STAGE_LABELS: Record<string, string> = {
   group_stage: 'Phase de groupes',
   round_of_32: '32e de finale',
   round_of_16: '16e de finale',
   quarter_final: 'Quart de finale',
   semi_final: 'Demi-finale',
-  third_place: '3e place',
+  third_place: 'Match de 3e place',
+  fifth_place: 'Match pour la 5e place',
+  seventh_place: 'Match pour la 7e place',
+  classification: 'Classement (5e-8e)',
+  qualification_round: 'Qualification (3e place)',
   final: 'FINALE',
 };
